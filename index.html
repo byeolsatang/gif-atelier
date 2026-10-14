@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>GIF工房</title>
+<meta name="description" content="スマホで動画からGIFと透過ステッカーを作る。トリム・切り抜き・形抜き・文字入れ・速度・逆再生・フィルター。動画は端末の中だけで処理されます。">
+<meta name="theme-color" content="#13141c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GIF工房">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&text=GIF%E5%B7%A5%E6%88%BF&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}
+/* Layout: one-column phone workbench — dark "screening" stage on top, trim strip, tabbed tools, sticky export bar */
+:root{
+  --bg:#eceef4; --surface:#ffffff; --ink:#1a1c29; --muted:#666c80; --line:#d5d8e3;
+  --chip:#e3e6ef; --accent:#d92f72; --accent-ink:#ffffff; --stage:#13141c; --track:#2a2c3a;
+  --display:"Dela Gothic One","Hiragino Sans","Noto Sans JP",sans-serif;
+  --body:-apple-system,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1017; --surface:#191b25; --ink:#eceef6; --muted:#959bb0; --line:#2b2e3c;
+  --chip:#232634; --accent:#ff5a97; --accent-ink:#1a0a12; --stage:#07080c; --track:#262836; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1017; --surface:#191b25; --ink:#eceef6; --muted:#959bb0; --line:#2b2e3c;
+  --chip:#232634; --accent:#ff5a97; --accent-ink:#1a0a12; --stage:#07080c; --track:#262836; color-scheme:dark}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--body);font-size:15px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+.app{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:14px 128px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:400;font-size:26px;line-height:1;margin:0;letter-spacing:.02em}
+h1 small{display:block;font-family:var(--body);font-size:12px;color:var(--muted);letter-spacing:.04em;margin-top:6px}
+.btn{appearance:none;border:0;border-radius:999px;font:inherit;font-weight:700;cursor:pointer;padding:10px 16px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:focus-visible,.seg button:focus-visible,.tabs button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn-pick{background:var(--ink);color:var(--bg)}
+.btn-main{background:var(--accent);color:var(--accent-ink);padding:13px 22px;font-size:16px}
+.btn-main:disabled{opacity:.5}
+.btn-sub{background:var(--chip);color:var(--ink)}
+.btn-sm{padding:13px 14px;font-size:14px}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+.stage{background:var(--stage);border-radius:18px;padding:10px;position:relative}
+.stage canvas{display:block;width:100%;height:auto;border-radius:8px;max-width:100%}
+.stage.cropping canvas{touch-action:none}
+.badge{position:absolute;top:18px;left:18px;font-size:11px;font-weight:700;letter-spacing:.08em;color:#fff;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:6px}
+
+.strip{display:flex;align-items:center;gap:12px}
+.play{width:44px;height:44px;flex:none;border-radius:50%;border:0;background:var(--ink);color:var(--bg);display:grid;place-items:center;cursor:pointer}
+.play svg{width:18px;height:18px;fill:currentColor}
+.tl{flex:1;min-width:0}
+.track{position:relative;height:40px;border-radius:10px;background:var(--track);touch-action:none;cursor:pointer;overflow:hidden;
+  background-image:repeating-linear-gradient(90deg,transparent 0 9px,rgba(255,255,255,.07) 9px 10px)}
+.sel{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 28%,transparent);border-left:3px solid var(--accent);border-right:3px solid var(--accent)}
+.sel::before,.sel::after{content:"";position:absolute;top:50%;width:3px;height:14px;margin-top:-7px;background:var(--accent-ink);border-radius:2px}
+.sel::before{left:2px}.sel::after{right:2px}
+.head{position:absolute;top:4px;bottom:4px;width:2px;background:#fff;border-radius:1px;pointer-events:none}
+.times{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+.times b{color:var(--ink);font-weight:500}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}
+.tabs button{appearance:none;border:0;background:none;font:inherit;font-weight:700;color:var(--muted);padding:12px 0;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.pane{padding:16px;display:flex;flex-direction:column;gap:16px}
+.row{display:flex;flex-direction:column;gap:7px}
+.lbl{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{appearance:none;border:1px solid transparent;background:var(--chip);color:var(--ink);font:inherit;font-size:14px;padding:7px 12px;border-radius:9px;cursor:pointer;font-variant-numeric:tabular-nums}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.dims{display:flex;align-items:center;gap:8px}
+.num{flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:0 12px}
+.num span{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+.num input{flex:1;min-width:0;width:100%;border:0;background:none;color:var(--ink);font-family:var(--mono);font-size:17px;padding:10px 0;text-align:right;font-variant-numeric:tabular-nums}
+.num input:focus{outline:none}.num:focus-within{border-color:var(--accent)}
+.lock{flex:none;width:40px;height:40px;border-radius:10px;border:0;background:var(--chip);color:var(--muted);display:grid;place-items:center;cursor:pointer}
+.lock svg{width:18px;height:18px;fill:currentColor}
+.lock[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+textarea{font:inherit;font-size:16px;width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:10px 12px;resize:vertical;min-height:52px}
+
+.result{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.result h2{font-size:15px;margin:0}
+.result .pic{background:var(--stage);border-radius:10px;padding:10px;display:grid;place-items:center;
+  background-image:linear-gradient(45deg,#1c1d27 25%,transparent 25%,transparent 75%,#1c1d27 75%),linear-gradient(45deg,#1c1d27 25%,transparent 25%,transparent 75%,#1c1d27 75%);background-size:16px 16px;background-position:0 0,8px 8px}
+.result img{max-width:100%;height:auto;display:block;-webkit-touch-callout:default}
+.meta{font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+.bar{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.bar-in{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.sum{flex:1;min-width:0;font-family:var(--mono);font-size:12.5px;line-height:1.4;font-variant-numeric:tabular-nums}
+.sum .warn{color:var(--accent);font-family:var(--body);font-weight:700}
+.prog{height:4px;border-radius:2px;background:var(--chip);margin-top:6px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head><body>
+<div class="app">
+  <header>
+    <h1>GIF工房<small>動画からGIFとステッカーを作る</small></h1>
+    <label class="btn btn-pick" for="file">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 5h11a2 2 0 0 1 2 2v2.5l4-2.5v10l-4-2.5V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>
+      動画を選ぶ
+    </label>
+    <input type="file" id="file" accept="video/*">
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="pv" width="640" height="360" aria-label="プレビュー"></canvas>
+    <span class="badge" id="badge">サンプル</span>
+  </div>
+
+  <div class="strip">
+    <button class="play" id="play" aria-label="再生・一時停止"><svg id="playIcon" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>
+    <div class="tl">
+      <div class="track" id="track"><div class="sel" id="sel"></div><div class="head" id="head"></div></div>
+      <div class="times"><span>開始 <b id="tS">0.00</b></span><span>長さ <b id="tL">0.00</b>秒</span><span>終了 <b id="tE">0.00</b></span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="crop">切り抜き</button>
+      <button role="tab" aria-selected="false" data-tab="text">文字</button>
+      <button role="tab" aria-selected="false" data-tab="out">仕上げ</button>
+    </div>
+    <div class="pane" data-pane="crop">
+      <div class="row"><span class="lbl">比率</span>
+        <div class="seg" data-key="aspect">
+          <button data-v="free">自由</button><button data-v="orig">元のまま</button><button data-v="1:1">1:1</button><button data-v="4:5">4:5</button><button data-v="9:16">9:16</button><button data-v="16:9">16:9</button>
+        </div>
+      </div>
+      <div class="row"><span class="lbl">ステッカーの形（外側が透明になります）</span>
+        <div class="seg" data-key="shape"><button data-v="none">なし</button><button data-v="round">角丸</button><button data-v="circle">丸</button><button data-v="heart">ハート</button><button data-v="star">星</button></div></div>
+      <div class="row" id="borderRow"><span class="lbl">ふち</span>
+        <div class="seg" data-key="border"><button data-v="white">白</button><button data-v="black">黒</button><button data-v="none">なし</button></div></div>
+      <p class="hint">プレビューの枠をドラッグで移動、四隅で大きさを変えられます。「PNG」ボタンで今の1コマを透過PNGで書き出せます。ストーリーズに貼るならPNGがふちまできれいです。</p>
+    </div>
+    <div class="pane" data-pane="text" hidden>
+      <div class="row"><label class="lbl" for="txt">文字（改行できます）</label><textarea id="txt" rows="2" placeholder="例：おつかれさま！"></textarea></div>
+      <div class="row"><span class="lbl">位置</span><div class="seg" data-key="tpos"><button data-v="top">上</button><button data-v="mid">中央</button><button data-v="bottom">下</button></div></div>
+      <div class="row"><span class="lbl">大きさ</span><div class="seg" data-key="tsize"><button data-v="s">小</button><button data-v="m">中</button><button data-v="l">大</button></div></div>
+      <div class="row"><span class="lbl">色</span><div class="seg" data-key="tstyle"><button data-v="w">白・黒ふち</button><button data-v="k">黒・白ふち</button><button data-v="y">黄・黒ふち</button><button data-v="p">ピンク・白ふち</button></div></div>
+    </div>
+    <div class="pane" data-pane="out" hidden>
+      <div class="row"><span class="lbl">サイズ（px）</span>
+        <div class="dims">
+          <label class="num"><span>幅</span><input id="ow" type="number" inputmode="numeric" min="8" max="1280" step="1"></label>
+          <button class="lock" id="lock" aria-pressed="true" aria-label="縦横比を固定"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="lockPath" d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm2 0h6V7a3 3 0 0 0-6 0z"/></svg></button>
+          <label class="num"><span>高さ</span><input id="oh" type="number" inputmode="numeric" min="8" max="1280" step="1"></label>
+        </div>
+        <p class="hint" id="lockHint">鍵マークで縦横比を固定。外すと幅と高さを別々に指定でき、絵は引き伸ばされます。</p>
+        <div class="seg" data-key="width" data-num><button data-v="240">240</button><button data-v="320">320</button><button data-v="480">480</button><button data-v="640">640</button></div></div>
+
+      <div class="row"><span class="lbl">なめらかさ（fps）</span><div class="seg" data-key="fps" data-num><button data-v="8">8</button><button data-v="12">12</button><button data-v="15">15</button><button data-v="20">20</button></div></div>
+      <div class="row"><span class="lbl">速度</span><div class="seg" data-key="speed" data-num><button data-v="0.5">0.5×</button><button data-v="1">1×</button><button data-v="1.5">1.5×</button><button data-v="2">2×</button><button data-v="3">3×</button></div></div>
+      <div class="row"><span class="lbl">再生のしかた</span><div class="seg" data-key="dir"><button data-v="fwd">通常</button><button data-v="rev">逆再生</button><button data-v="pp">往復</button></div></div>
+      <div class="row"><span class="lbl">くり返し</span><div class="seg" data-key="loop"><button data-v="on">ずっと</button><button data-v="off">1回だけ</button></div></div>
+      <div class="row"><span class="lbl">フィルター</span><div class="seg" data-key="filter"><button data-v="none">なし</button><button data-v="mono">モノクロ</button><button data-v="sepia">セピア</button><button data-v="vivid">ビビッド</button><button data-v="film">フィルム</button></div></div>
+      <div class="row"><span class="lbl">画質</span><div class="seg" data-key="dither"><button data-v="on">なめらか（ディザ）</button><button data-v="off">くっきり・軽い</button></div>
+        <p class="hint">なめらかは空や肌のグラデーションが縞にならず、ファイルは少し大きくなります。</p></div>
+      <div class="row"><span class="lbl">色数（少ないほど軽い）</span><div class="seg" data-key="colors" data-num><button data-v="64">64</button><button data-v="128">128</button><button data-v="256">256</button></div></div>
+    </div>
+  </div>
+
+  <section class="result" id="result" hidden>
+    <h2>できあがり</h2>
+    <div class="pic"><img id="out" alt="作成したGIF"></div>
+    <div class="meta" id="outMeta"></div>
+    <div class="acts">
+      <button class="btn btn-main" id="save">保存する</button>
+      <span class="hint" id="saveHint">画像を長押しでも保存できます</span>
+    </div>
+  </section>
+</div>
+
+<div class="bar">
+  <div class="bar-in">
+    <div class="sum"><div id="sum"></div><div class="prog" id="progWrap" hidden><i id="prog"></i></div></div>
+    <button class="btn btn-sub btn-sm" id="png">PNG</button>
+    <button class="btn btn-main" id="make">GIFを作る</button>
+  </div>
+</div>
+
+<video id="vid" muted playsinline webkit-playsinline preload="auto" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:0;top:0"></video>
+
+<script type="module">
+/* gifenc 1.0.3 — MIT License, Copyright (c) 2017 Matt DesLauriers */
+import {GIFEncoder,quantize,applyPalette} from "https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js";
+window.gifenc={GIFEncoder,quantize,applyPalette};
+</script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const pv=$('pv'), pctx=pv.getContext('2d',{willReadFrequently:true});
+const vid=$('vid');
+const S={shape:'none',border:'white',dither:'on',keep:true,oh:270,start:0,end:3,aspect:'orig',text:'Have a nice day ☆',tpos:'bottom',tsize:'m',tstyle:'w',
+  width:480,fps:12,speed:1,dir:'fwd',loop:'on',filter:'none',colors:256,crop:{x:0,y:0,w:640,h:360}};
+let src=null, playing=true, busy=false, curT=0, tab='crop', lastNow=0, outBlob=null, outUrl=null;
+
+/* ---------- sample source (generated) ---------- */
+const sampleCv=document.createElement('canvas'); sampleCv.width=640; sampleCv.height=360;
+const sctx=sampleCv.getContext('2d');
+const stars=Array.from({length:46},(_,i)=>({x:(i*137.5)%640,y:(i*71.3+23)%360,r:1+(i%4),p:i*0.7,k:1+(i%3)}));
+function starPath(c,cx,cy,R,r,rot){c.beginPath();for(let i=0;i<10;i++){const a=rot+i*Math.PI/5-Math.PI/2,rr=i%2?r:R;c.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr);}c.closePath();}
+function drawSample(t){
+  const D=4, ph=(t%D)/D*Math.PI*2, c=sctx;
+  const g=c.createLinearGradient(0,0,640,360);
+  g.addColorStop(0,'#1d1a4a'); g.addColorStop(.6,'#5a2a7a'); g.addColorStop(1,'#d2507d');
+  c.fillStyle=g; c.fillRect(0,0,640,360);
+  for(const s of stars){const a=.35+.65*Math.abs(Math.sin(ph*s.k+s.p)); c.fillStyle=`rgba(255,240,250,${a})`; c.beginPath(); c.arc(s.x,s.y,s.r,0,7); c.fill();}
+  const by=180-Math.abs(Math.sin(ph))*70;
+  c.fillStyle='rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(320,262,60-Math.abs(Math.sin(ph))*20,10,0,0,7); c.fill();
+  starPath(c,320,by,74,34,Math.sin(ph)*.35);
+  const sg=c.createRadialGradient(300,by-20,10,320,by,80); sg.addColorStop(0,'#fff6b8'); sg.addColorStop(1,'#ffb02e');
+  c.fillStyle=sg; c.fill(); c.lineWidth=5; c.strokeStyle='#fff'; c.stroke();
+  c.fillStyle='#3a1f3d'; c.beginPath(); c.arc(304,by-4,5,0,7); c.arc(336,by-4,5,0,7); c.fill();
+  c.strokeStyle='#3a1f3d'; c.lineWidth=3; c.beginPath(); c.arc(320,by+6,9,.2,Math.PI-.2); c.stroke();
+}
+
+/* ---------- helpers ---------- */
+const fmt=t=>t.toFixed(2);
+function srcImage(t){ if(src.kind==='sample'){drawSample(t);return sampleCv;} return vid; }
+const RATIOS={'1:1':1,'4:5':.8,'9:16':9/16,'16:9':16/9};
+function ratio(){ if(S.aspect==='free')return null; if(S.aspect==='orig')return src.w/src.h; return RATIOS[S.aspect]; }
+function applyAspect(){
+  const r=ratio(); if(!r){return;}
+  let w=src.w,h=w/r; if(h>src.h){h=src.h;w=h*r;}
+  const c=S.crop, cx=c.x+c.w/2, cy=c.y+c.h/2;
+  let x=Math.min(Math.max(cx-w/2,0),src.w-w), y=Math.min(Math.max(cy-h/2,0),src.h-h);
+  S.crop={x,y,w,h};
+}
+function outSize(){
+  const c=S.crop, ow=clampPx(S.width);
+  const oh=S.keep?clampPx(ow*c.h/c.w):clampPx(S.oh); return {ow,oh};
+}
+/* High-quality downscale: halve step by step so big videos don't alias */
+const pool=[];
+function drawScaled(dst,img,c,ow,oh){
+  let cur=img, sx=c.x, sy=c.y, sw=c.w, sh=c.h, i=0;
+  while(sw/2>=ow && sh/2>=oh){
+    const nw=Math.round(sw/2), nh=Math.round(sh/2);
+    const cv=pool[i]||(pool[i]=document.createElement('canvas'));
+    if(cv.width!==nw||cv.height!==nh){cv.width=nw;cv.height=nh;}
+    const cx=cv.getContext('2d'); cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
+    cx.drawImage(cur,sx,sy,sw,sh,0,0,nw,nh);
+    cur=cv; sx=0; sy=0; sw=nw; sh=nh; i++;
+  }
+  dst.imageSmoothingEnabled=true; dst.imageSmoothingQuality='high';
+  dst.drawImage(cur,sx,sy,sw,sh,0,0,ow,oh);
+}
+/* Floyd–Steinberg dithering onto the frame's palette */
+const ditherCache=new Int16Array(65536);
+function ditherIndex(data,w,h,palette,skip,T){
+  ditherCache.fill(-1);
+  const n=w*h, out=new Uint8Array(n), buf=new Float32Array(n*3), P=palette, L=skip?T:P.length;
+  for(let i=0,j=0;i<n;i++,j+=4){buf[i*3]=data[j];buf[i*3+1]=data[j+1];buf[i*3+2]=data[j+2];}
+  const add=(k,er,eg,eb,f)=>{buf[k]+=er*f;buf[k+1]+=eg*f;buf[k+2]+=eb*f;};
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=y*w+x, k=i*3;
+      if(skip&&skip[i]){out[i]=T;continue;}
+      let r=buf[k],g=buf[k+1],b=buf[k+2];
+      r=r<0?0:r>255?255:r; g=g<0?0:g>255?255:g; b=b<0?0:b>255?255:b;
+      const key=((r>>3)<<11)|((g>>2)<<5)|(b>>3);
+      let idx=ditherCache[key];
+      if(idx<0){
+        let best=1e9; idx=0;
+        for(let p=0;p<L;p++){const c=P[p],dr=c[0]-r,dg=c[1]-g,db=c[2]-b,d=dr*dr*2+dg*dg*4+db*db*3; if(d<best){best=d;idx=p;}}
+        ditherCache[key]=idx;
+      }
+      out[i]=idx;
+      const c=P[idx], er=r-c[0], eg=g-c[1], eb=b-c[2];
+      if(x+1<w) add(k+3,er,eg,eb,7/16);
+      if(y+1<h){
+        if(x>0) add(k+3*w-3,er,eg,eb,3/16);
+        add(k+3*w,er,eg,eb,5/16);
+        if(x+1<w) add(k+3*w+3,er,eg,eb,1/16);
+      }
+    }
+  }
+  return out;
+}
+function clampPx(v){ v=Math.round(Number(v)||0); return Math.min(1280,Math.max(8,v)); }
+function frameTimes(){
+  const step=S.speed/S.fps, ts=[];
+  for(let t=S.start;t<S.end-1e-6;t+=step) ts.push(t);
+  if(!ts.length) ts.push(S.start); return ts;
+}
+function totalFrames(n){ return S.dir==='pp'?Math.max(1,n*2-2):n; }
+
+/* ---------- filters & caption ---------- */
+function applyFilter(d,f){
+  if(f==='none')return;
+  for(let i=0;i<d.length;i+=4){
+    let r=d[i],g=d[i+1],b=d[i+2]; const l=.299*r+.587*g+.114*b;
+    if(f==='mono'){r=g=b=l;}
+    else if(f==='sepia'){r=.393*r+.769*g+.189*b; g=.349*d[i]+.686*g+.168*b; b=.272*d[i]+.534*d[i+1]+.131*b;}
+    else if(f==='vivid'){const s=1.45;r=l+(r-l)*s;g=l+(g-l)*s;b=l+(b-l)*s;r=(r-128)*1.08+128;g=(g-128)*1.08+128;b=(b-128)*1.08+128;}
+    else if(f==='film'){const s=.7;r=l+(r-l)*s;g=l+(g-l)*s;b=l+(b-l)*s;r=24+r*.86+6;g=22+g*.84;b=30+b*.78;}
+    d[i]=r<0?0:r>255?255:r; d[i+1]=g<0?0:g>255?255:g; d[i+2]=b<0?0:b>255?255:b;
+  }
+}
+const TSTYLE={w:['#ffffff','#111111'],k:['#111111','#ffffff'],y:['#ffe14a','#111111'],p:['#ff4f93','#ffffff']};
+function drawCaption(c,x,y,w,h){
+  const txt=S.text.trim(); if(!txt)return;
+  const lines=txt.split('\n');
+  let fs=h*{s:.08,m:.115,l:.16}[S.tsize];
+  const font=s=>`800 ${s}px "Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif`;
+  c.save(); c.font=font(fs);
+  const maxW=Math.max(...lines.map(l=>c.measureText(l).width));
+  if(maxW>w*.92){fs*=w*.92/maxW; c.font=font(fs);}
+  const lh=fs*1.18, tot=lh*lines.length, pad=h*.06;
+  let y0=S.tpos==='top'?y+pad:S.tpos==='mid'?y+(h-tot)/2:y+h-pad-tot;
+  const [fill,stroke]=TSTYLE[S.tstyle];
+  c.textAlign='center'; c.textBaseline='top'; c.lineJoin='round';
+  c.lineWidth=Math.max(2,fs*.2); c.strokeStyle=stroke; c.fillStyle=fill;
+  lines.forEach((l,i)=>{const ly=y0+i*lh+fs*.05; c.strokeText(l,x+w/2,ly); c.fillText(l,x+w/2,ly);});
+  c.restore();
+}
+
+/* ---------- preview ---------- */
+function sizePreview(){
+  const W=Math.min(src.w,720); pv.width=Math.round(W); pv.height=Math.round(W*src.h/src.w);
+}
+function draw(){
+  if(!src)return;
+  const k=pv.width/src.w, img=srcImage(curT);
+  try{ pctx.drawImage(img,0,0,pv.width,pv.height); }catch(e){ return; }
+  const c=S.crop, cx=c.x*k, cy=c.y*k, cw=c.w*k, ch=c.h*k;
+  if(S.filter!=='none'){
+    const x=Math.floor(cx),y=Math.floor(cy),w=Math.max(1,Math.ceil(cw)),h=Math.max(1,Math.ceil(ch));
+    const id=pctx.getImageData(x,y,w,h); applyFilter(id.data,S.filter); pctx.putImageData(id,x,y);
+  }
+  drawShapeOverlay(cx,cy,cw,ch);
+  drawCaption(pctx,cx,cy,cw,ch);
+  pctx.fillStyle='rgba(0,0,0,.6)';
+  pctx.fillRect(0,0,pv.width,cy); pctx.fillRect(0,cy+ch,pv.width,pv.height-cy-ch);
+  pctx.fillRect(0,cy,cx,ch); pctx.fillRect(cx+cw,cy,pv.width-cx-cw,ch);
+  pctx.strokeStyle='rgba(255,255,255,.9)'; pctx.lineWidth=1.5; pctx.strokeRect(cx+.75,cy+.75,cw-1.5,ch-1.5);
+  if(tab==='crop'){
+    if(drag){pctx.strokeStyle='rgba(255,255,255,.35)';pctx.lineWidth=1;pctx.beginPath();
+      for(let i=1;i<3;i++){pctx.moveTo(cx+cw*i/3,cy);pctx.lineTo(cx+cw*i/3,cy+ch);pctx.moveTo(cx,cy+ch*i/3);pctx.lineTo(cx+cw,cy+ch*i/3);}pctx.stroke();}
+    const L=Math.min(22*pv.width/pv.getBoundingClientRect().width||22,cw/3,ch/3); pctx.strokeStyle='#fff'; pctx.lineWidth=4; pctx.lineCap='round';
+    [[cx,cy,1,1],[cx+cw,cy,-1,1],[cx+cw,cy+ch,-1,-1],[cx,cy+ch,1,-1]].forEach(([x,y,dx,dy])=>{
+      pctx.beginPath(); pctx.moveTo(x+dx*L,y+dy*2); pctx.lineTo(x+dx*2,y+dy*2); pctx.lineTo(x+dx*2,y+dy*L); pctx.stroke();});
+  }
+}
+function tick(now){
+  const dt=Math.min(.1,(now-lastNow)/1000||0); lastNow=now;
+  if(src&&!busy){
+    if(src.kind==='video'){
+      if(playing){
+        if(vid.paused) vid.play().catch(()=>{});
+        if(vid.currentTime>=S.end-0.03||vid.currentTime<S.start-0.15) vid.currentTime=S.start;
+      } else if(!vid.paused) vid.pause();
+      curT=vid.currentTime;
+    } else if(playing){ curT+=dt*S.speed; if(curT>=S.end||curT<S.start) curT=S.start; }
+    draw(); updateHead();
+  }
+  requestAnimationFrame(tick);
+}
+function setPlaying(p){
+  playing=p;
+  $('playIcon').innerHTML=p?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':'<path d="M7 4l13 8-13 8z"/>';
+}
+$('play').onclick=()=>setPlaying(!playing);
+
+/* ---------- timeline ---------- */
+const track=$('track'); let tlDrag=null;
+function updateTL(){
+  const D=src.duration;
+  $('sel').style.left=(S.start/D*100)+'%'; $('sel').style.width=((S.end-S.start)/D*100)+'%';
+  $('tS').textContent=fmt(S.start); $('tE').textContent=fmt(S.end); $('tL').textContent=fmt(S.end-S.start);
+  updateSum();
+}
+function updateHead(){ $('head').style.left=`calc(${(curT/src.duration*100).toFixed(3)}% - 1px)`; }
+function seekPreview(t){ curT=t; if(src.kind==='video'){ try{vid.currentTime=t;}catch(e){} } }
+track.addEventListener('pointerdown',e=>{
+  if(!src||busy)return;
+  const r=track.getBoundingClientRect(), t=(e.clientX-r.left)/r.width*src.duration;
+  tlDrag=Math.abs(t-S.start)<=Math.abs(t-S.end)?'start':'end';
+  track.setPointerCapture(e.pointerId); setPlaying(false); moveTL(e);
+});
+track.addEventListener('pointermove',e=>{ if(tlDrag) moveTL(e); });
+const endTL=()=>{ if(tlDrag){tlDrag=null; seekPreview(S.start); setPlaying(true);} };
+track.addEventListener('pointerup',endTL); track.addEventListener('pointercancel',endTL);
+function moveTL(e){
+  const r=track.getBoundingClientRect(), D=src.duration, MIN=0.1;
+  let t=Math.min(Math.max((e.clientX-r.left)/r.width*D,0),D);
+  if(tlDrag==='start') S.start=Math.min(t,S.end-MIN); else S.end=Math.max(t,S.start+MIN);
+  seekPreview(tlDrag==='start'?S.start:S.end); updateTL(); updateHead();
+}
+
+/* ---------- crop dragging ---------- */
+let drag=null;
+function toSrc(e){ const r=pv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*src.w, y:(e.clientY-r.top)/r.height*src.h, s:src.w/r.width}; }
+pv.addEventListener('pointerdown',e=>{
+  if(!src||tab!=='crop'||busy)return;
+  const p=toSrc(e), c=S.crop, R=30*p.s;
+  const corners=[[c.x,c.y],[c.x+c.w,c.y],[c.x+c.w,c.y+c.h],[c.x,c.y+c.h]];
+  let ci=-1,best=R; corners.forEach(([x,y],i)=>{const d=Math.hypot(p.x-x,p.y-y); if(d<best){best=d;ci=i;}});
+  if(ci>=0){ const o=corners[(ci+2)%4]; drag={mode:'resize',fx:o[0],fy:o[1]}; }
+  else if(p.x>c.x&&p.x<c.x+c.w&&p.y>c.y&&p.y<c.y+c.h){ drag={mode:'move',ox:p.x-c.x,oy:p.y-c.y}; }
+  else return;
+  pv.setPointerCapture(e.pointerId); e.preventDefault();
+});
+pv.addEventListener('pointermove',e=>{
+  if(!drag)return; const p=toSrc(e), c=S.crop;
+  if(drag.mode==='move'){
+    c.x=Math.min(Math.max(p.x-drag.ox,0),src.w-c.w); c.y=Math.min(Math.max(p.y-drag.oy,0),src.h-c.h);
+  } else {
+    const {fx,fy}=drag, right=p.x>=fx, down=p.y>=fy, r=ratio(), MIN=24;
+    let w=Math.max(MIN,Math.abs(p.x-fx)), h=Math.max(MIN,Math.abs(p.y-fy));
+    if(r){ if(w/h>r) w=h*r; else h=w/r; }
+    const maxW=right?src.w-fx:fx, maxH=down?src.h-fy:fy;
+    if(w>maxW){w=maxW; if(r)h=w/r;} if(h>maxH){h=maxH; if(r)w=h*r;}
+    S.crop={x:right?fx:fx-w, y:down?fy:fy-h, w, h};
+  }
+  updateSum();
+});
+const endCrop=()=>{drag=null;}; pv.addEventListener('pointerup',endCrop); pv.addEventListener('pointercancel',endCrop);
+
+/* ---------- controls ---------- */
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  tab=b.dataset.tab;
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('[data-pane]').forEach(p=>p.hidden=p.dataset.pane!==tab);
+  $('stage').classList.toggle('cropping',tab==='crop');
+});
+$('stage').classList.add('cropping');
+function syncSegs(){
+  document.querySelectorAll('.seg').forEach(seg=>{ const v=String(S[seg.dataset.key]);
+    seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v)); });
+  $('borderRow').hidden=S.shape==='none';
+}
+document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b||busy)return;
+  const k=seg.dataset.key; S[k]=seg.hasAttribute('data-num')?Number(b.dataset.v):b.dataset.v;
+  if(k==='aspect') applyAspect();
+  if(k==='shape'&&['circle','heart','star'].includes(S.shape)&&(S.aspect==='orig'||S.aspect==='free')){S.aspect='1:1';applyAspect();}
+  if(k==='speed') vid.playbackRate=S.speed;
+  if(k==='width'&&!S.keep) S.oh=clampPx(S.width*S.crop.h/S.crop.w);
+  syncSegs(); updateSum();
+}));
+
+/* ---------- pixel size ---------- */
+function syncSize(){
+  const {ow,oh}=outSize();
+  if(document.activeElement!==$('ow')) $('ow').value=ow;
+  if(document.activeElement!==$('oh')) $('oh').value=oh;
+}
+function onDim(which,commit){
+  const el=$(which), v=Number(el.value);
+  if(!commit&&!(v>=8&&v<=1280)) return;
+  const px=clampPx(v), c=S.crop;
+  if(which==='ow'){ S.width=px; }
+  else if(S.keep){ S.width=clampPx(px*c.w/c.h); }
+  else { S.oh=px; }
+  if(commit) el.value=px;
+  syncSegs(); updateSum();
+}
+['ow','oh'].forEach(id=>{
+  $(id).addEventListener('input',()=>onDim(id,false));
+  $(id).addEventListener('change',()=>onDim(id,true));
+  $(id).addEventListener('blur',()=>syncSize());
+});
+$('lock').onclick=()=>{
+  if(busy)return;
+  if(S.keep){ S.oh=outSize().oh; S.keep=false; } else { S.keep=true; }
+  $('lock').setAttribute('aria-pressed',S.keep);
+  $('lockPath').setAttribute('d',S.keep
+    ?'M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm2 0h6V7a3 3 0 0 0-6 0z'
+    :'M9 10h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1V7a5 5 0 0 1 9.6-2l-1.8.9A3 3 0 0 0 9 7z');
+  updateSum();
+};
+$('txt').value=S.text; $('txt').addEventListener('input',e=>{S.text=e.target.value;});
+
+function updateSum(){
+  if(!src)return;
+  const {ow,oh}=outSize(), n=totalFrames(frameTimes().length);
+  const est=n*ow*oh*0.32*Math.pow(S.colors/256,.35)/1048576;
+  const play=(n/S.fps).toFixed(1);
+  let s=`${ow}×${oh} · ${n}コマ · ${play}秒<br>約${est<1?est.toFixed(2):est.toFixed(1)}MB（目安）`;
+  if(n*ow*oh>45e6) s+=` <span class="warn">重め：横幅かfpsを下げてください</span>`;
+  $('sum').innerHTML=s;
+  syncSize();
+}
+
+/* ---------- load video ---------- */
+$('file').addEventListener('change',async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  if(vid.src) URL.revokeObjectURL(vid.src);
+  vid.src=URL.createObjectURL(f); vid.load();
+  $('sum').textContent='読み込み中…';
+  try{
+    await new Promise((res,rej)=>{vid.onloadeddata=res; vid.onerror=()=>rej(new Error('load'));});
+  }catch(err){ $('sum').textContent='この動画は読み込めませんでした。別の形式（MP4・MOV）で試してください。'; return; }
+  src={kind:'video',w:vid.videoWidth,h:vid.videoHeight,duration:vid.duration||1};
+  S.start=0; S.end=Math.min(src.duration,4); S.crop={x:0,y:0,w:src.w,h:src.h};
+  if(S.text==='Have a nice day ☆'){S.text='';$('txt').value='';}
+  if(S.aspect!=='free'&&S.aspect!=='orig') applyAspect(); else S.aspect='orig';
+  vid.playbackRate=S.speed; curT=0; $('badge').hidden=true;
+  sizePreview(); syncSegs(); updateTL(); setPlaying(true);
+  e.target.value='';
+});
+
+/* ---------- export ---------- */
+function seekTo(t){
+  return new Promise(res=>{
+    if(Math.abs(vid.currentTime-t)<0.0005){res();return;}
+    let to; const done=()=>{vid.removeEventListener('seeked',done);clearTimeout(to);requestAnimationFrame(()=>res());};
+    vid.addEventListener('seeked',done); to=setTimeout(done,2000); vid.currentTime=t;
+  });
+}
+const yieldUI=()=>new Promise(r=>setTimeout(r,0));
+function setProg(p,label){ $('progWrap').hidden=false; $('prog').style.width=(p*100).toFixed(1)+'%'; $('sum').textContent=label; }
+$('make').onclick=async()=>{
+  if(!src||busy)return;
+  const G=window.gifenc;
+  if(!G){ $('sum').textContent='準備中です。少し待ってからもう一度押してください。'; return; }
+  busy=true; $('make').disabled=true; setPlaying(false); vid.pause();
+  try{
+    const {ow,oh}=outSize(), ts=frameTimes(), c=S.crop;
+    const frames=[];
+    for(let i=0;i<ts.length;i++){
+      if(src.kind==='video') await seekTo(ts[i]);
+      const ctx=renderFrame(srcImage(ts[i]),ow,oh);
+      const data=ctx.getImageData(0,0,ow,oh).data;
+      frames.push(quantizeFrame(G,data,ow,oh));
+      setProg((i+1)/ts.length*.9,`コマを作成中 ${i+1}/${ts.length}`);
+      await yieldUI();
+    }
+    let order=frames;
+    if(S.dir==='rev') order=frames.slice().reverse();
+    if(S.dir==='pp') order=frames.concat(frames.slice(1,-1).reverse());
+    setProg(.95,'GIFにまとめています…'); await yieldUI();
+    const gif=G.GIFEncoder(), delay=Math.round(1000/S.fps);
+    order.forEach((f,i)=>{ const o={palette:f.palette,delay}; if(i===0) o.repeat=S.loop==='on'?0:-1;
+      if(f.T!==undefined){o.transparent=true;o.transparentIndex=f.T;o.dispose=2;}
+      gif.writeFrame(f.index,ow,oh,o); });
+    gif.finish();
+    showResult(new Blob([gif.bytes()],{type:'image/gif'}),'gif',ow,oh,`${order.length}コマ${S.shape!=='none'?'・透過':''}`);
+    setProg(1,'できました'); setTimeout(()=>{$('progWrap').hidden=true; updateSum();},1200);
+    $('result').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+  }catch(err){
+    $('sum').textContent='作成に失敗しました。横幅かfpsを下げて、もう一度お試しください。'; $('progWrap').hidden=true;
+  }finally{
+    busy=false; $('make').disabled=false; if(src.kind==='video') vid.currentTime=S.start; curT=S.start; setPlaying(true);
+  }
+};
+
+
+/* ---------- stickers: shapes, border, transparent frames ---------- */
+const BORDER={white:'#ffffff',black:'#111111'};
+function borderW(ow,oh){ return S.border==='none'?0:Math.max(2,Math.round(Math.min(ow,oh)*.04)); }
+function shapePath(c,shape,x,y,w,h,begin=true){
+  if(begin) c.beginPath();
+  if(shape==='round'){ const r=Math.min(w,h)*.2; c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+  else if(shape==='circle'){ c.moveTo(x+w,y+h/2); c.ellipse(x+w/2,y+h/2,w/2,h/2,0,0,Math.PI*2); c.closePath(); }
+  else if(shape==='heart'){ c.moveTo(x+w*.5,y+h*.97); c.bezierCurveTo(x+w*.12,y+h*.7,x,y+h*.42,x+w*.06,y+h*.24); c.bezierCurveTo(x+w*.14,y+h*.02,x+w*.42,y,x+w*.5,y+h*.2); c.bezierCurveTo(x+w*.58,y,x+w*.86,y+h*.02,x+w*.94,y+h*.24); c.bezierCurveTo(x+w,y+h*.42,x+w*.88,y+h*.7,x+w*.5,y+h*.97); c.closePath(); }
+  else if(shape==='star'){ const cx=x+w/2, cy=y+h*.53, rx=w/2, ry=h*.53; for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, k=i%2?.5:1, px=cx+Math.cos(a)*rx*k, py=cy+Math.sin(a)*ry*k; if(i) c.lineTo(px,py); else c.moveTo(px,py); } c.closePath(); }
+  else { c.rect(x,y,w,h); }
+}
+let checker=null;
+function drawShapeOverlay(cx,cy,cw,ch){
+  if(S.shape==='none')return;
+  if(!checker){ const t=document.createElement('canvas'); t.width=t.height=16; const g=t.getContext('2d'); g.fillStyle='#d9dbe3'; g.fillRect(0,0,16,16); g.fillStyle='#f4f5f8'; g.fillRect(0,0,8,8); g.fillRect(8,8,8,8); checker=pctx.createPattern(t,'repeat'); }
+  const o=outSize(), b=borderW(o.ow,o.oh)*cw/o.ow, ix=cx+b, iy=cy+b, iw=cw-2*b, ih=ch-2*b;
+  pctx.save();
+  pctx.beginPath(); pctx.rect(cx,cy,cw,ch); shapePath(pctx,S.shape,ix,iy,iw,ih,false); pctx.clip('evenodd');
+  pctx.fillStyle=checker; pctx.fillRect(cx,cy,cw,ch);
+  if(b){ shapePath(pctx,S.shape,ix,iy,iw,ih); pctx.lineWidth=b*2; pctx.lineJoin='round'; pctx.strokeStyle=BORDER[S.border]; pctx.stroke(); }
+  pctx.restore();
+}
+const oc=document.createElement('canvas'), octx=oc.getContext('2d',{willReadFrequently:true});
+const stk=document.createElement('canvas'), stx=stk.getContext('2d',{willReadFrequently:true});
+function renderFrame(img,ow,oh){
+  if(oc.width!==ow||oc.height!==oh){oc.width=ow;oc.height=oh;}
+  drawScaled(octx,img,S.crop,ow,oh);
+  if(S.filter!=='none'){const id=octx.getImageData(0,0,ow,oh); applyFilter(id.data,S.filter); octx.putImageData(id,0,0);}
+  if(S.shape==='none'){ drawCaption(octx,0,0,ow,oh); return octx; }
+  if(stk.width!==ow||stk.height!==oh){stk.width=ow;stk.height=oh;}
+  const b=borderW(ow,oh);
+  stx.clearRect(0,0,ow,oh);
+  if(b){ stx.save(); shapePath(stx,S.shape,b,b,ow-2*b,oh-2*b); stx.fillStyle=stx.strokeStyle=BORDER[S.border]; stx.lineWidth=b*2; stx.lineJoin='round'; stx.fill(); stx.stroke(); stx.restore(); }
+  stx.save(); shapePath(stx,S.shape,b,b,ow-2*b,oh-2*b); stx.clip(); stx.drawImage(oc,0,0); stx.restore();
+  drawCaption(stx,0,0,ow,oh);
+  return stx;
+}
+function quantizeFrame(G,data,ow,oh){
+  if(S.shape==='none'){ const palette=G.quantize(data,S.colors); return {palette,index:S.dither==='on'?ditherIndex(data,ow,oh,palette):G.applyPalette(data,palette)}; }
+  const n=ow*oh, skip=new Uint8Array(n); let cnt=0;
+  for(let i=0;i<n;i++){ if(data[i*4+3]<128) skip[i]=1; else cnt++; }
+  const op=new Uint8ClampedArray(Math.max(1,cnt)*4);
+  for(let i=0,j=0;i<n;i++) if(!skip[i]){ op[j]=data[i*4]; op[j+1]=data[i*4+1]; op[j+2]=data[i*4+2]; op[j+3]=255; j+=4; }
+  const palette=G.quantize(op,S.colors-1), T=palette.length; palette.push([0,0,0]);
+  let index;
+  if(S.dither==='on') index=ditherIndex(data,ow,oh,palette,skip,T);
+  else { index=G.applyPalette(data,palette.slice(0,T)); for(let i=0;i<n;i++) if(skip[i]) index[i]=T; }
+  return {palette,index,T};
+}
+let outExt='gif';
+function fmtSize(b){ const mb=b/1048576; return mb<1?Math.round(b/1024)+'KB':mb.toFixed(2)+'MB'; }
+function showResult(blob,ext,ow,oh,label){
+  outBlob=blob; outExt=ext;
+  if(outUrl) URL.revokeObjectURL(outUrl); outUrl=URL.createObjectURL(blob);
+  $('out').src=outUrl; $('out').width=ow; $('out').height=oh;
+  $('outMeta').textContent=`${ext.toUpperCase()} · ${ow}×${oh} · ${label} · ${fmtSize(blob.size)}`;
+  $('saveHint').textContent='画像を長押しでも保存できます';
+  $('result').hidden=false;
+}
+$('png').onclick=async()=>{
+  if(!src||busy)return;
+  const {ow,oh}=outSize(); setPlaying(false);
+  const ctx=renderFrame(srcImage(curT),ow,oh);
+  const blob=await new Promise(r=>ctx.canvas.toBlob(r,'image/png'));
+  if(!blob){ $('sum').textContent='PNGを作れませんでした。サイズを下げてお試しください。'; return; }
+  showResult(blob,'png',ow,oh,S.shape==='none'?'静止画':'静止画・透過');
+  $('result').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+};
+/* ---------- save ---------- */
+let dl=null;
+try{ if(window.claude&&window.claude.use) window.claude.use('downloads').then(x=>{dl=x;}).catch(()=>{}); }catch(e){}
+$('save').onclick=async()=>{
+  if(!outBlob)return;
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  const name=`gifkobo-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.${outExt}`;
+  if(dl){
+    try{ await dl.save({filename:name,data:outBlob}); $('saveHint').textContent='保存しました'; }
+    catch(err){ if(err&&err.code==='declined')return; $('saveHint').textContent='ここでは保存できません。画像を長押しして保存してください'; }
+    return;
+  }
+  try{
+    const file=new File([outBlob],name,{type:'image/'+outExt});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file]}); $('saveHint').textContent='共有シートから「画像を保存」で写真に入ります'; return;
+    }
+  }catch(err){ if(err&&err.name==='AbortError')return; }
+  const a=document.createElement('a'); a.href=outUrl; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+};
+
+/* ---------- start with sample ---------- */
+src={kind:'sample',w:640,h:360,duration:4};
+S.end=4; sizePreview(); syncSegs(); updateTL(); setPlaying(true);
+requestAnimationFrame(tick);
+})();
+</script>
+</body></html>

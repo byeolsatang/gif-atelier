@@ -1,0 +1,13 @@
+{
+  "name": "gif-atelier",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "@expo-google-fonts/noto-sans-jp": "0.4.3",
+    "@expo-google-fonts/dela-gothic-one": "0.4.1"
+  }
+}

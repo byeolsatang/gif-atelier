@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+<defs><pattern id="ck" width="32" height="32" patternUnits="userSpaceOnUse"><rect width="32" height="32" fill="#1c1d27"/><rect width="16" height="16" fill="#252736"/><rect x="16" y="16" width="16" height="16" fill="#252736"/></pattern></defs>
+<rect width="1200" height="630" fill="#13141c"/>
+<rect x="820" y="0" width="380" height="630" fill="url(#ck)"/>
+<rect x="0" y="0" width="1200" height="10" fill="#ff5a97"/>
+<text x="96" y="300" font-family="Dela Gothic One" font-size="132" fill="#ffffff">GIF工房</text>
+<text x="100" y="390" font-family="Noto Sans JP" font-weight="700" font-size="40" fill="#959bb0">動画からGIFとステッカーを作る</text>
+<rect x="100" y="420" width="108" height="46" rx="23" fill="#232634"/><text x="154" y="453" text-anchor="middle" font-family="Noto Sans JP" font-weight="700" font-size="24" fill="#eceef6">トリム</text>
+<rect x="220" y="420" width="132" height="46" rx="23" fill="#232634"/><text x="286" y="453" text-anchor="middle" font-family="Noto Sans JP" font-weight="700" font-size="24" fill="#eceef6">切り抜き</text>
+<rect x="364" y="420" width="132" height="46" rx="23" fill="#232634"/><text x="430" y="453" text-anchor="middle" font-family="Noto Sans JP" font-weight="700" font-size="24" fill="#eceef6">文字入れ</text>
+<rect x="508" y="420" width="123" height="46" rx="23" fill="#232634"/><text x="570" y="453" text-anchor="middle" font-family="Noto Sans JP" font-weight="700" font-size="24" fill="#eceef6">透過GIF</text>
+<rect x="643" y="420" width="135" height="46" rx="23" fill="#232634"/><text x="710" y="453" text-anchor="middle" font-family="Noto Sans JP" font-weight="700" font-size="24" fill="#eceef6">透過PNG</text>
+<text x="100" y="520" font-family="Noto Sans JP" font-weight="700" font-size="28" fill="#ff5a97">gif-atelier.vercel.app</text>
+<g transform="translate(905 300) rotate(-8) scale(1.25) translate(-256 -290)">
+<path d="M256 412 C178 356 132 300 140 236 C146 186 186 158 226 168 C242 172 252 182 256 192 C260 182 270 172 286 168 C326 158 366 186 372 236 C380 300 334 356 256 412 Z" fill="#ffffff" stroke="#ffffff" stroke-width="26" stroke-linejoin="round"/>
+<path d="M256 412 C178 356 132 300 140 236 C146 186 186 158 226 168 C242 172 252 182 256 192 C260 182 270 172 286 168 C326 158 366 186 372 236 C380 300 334 356 256 412 Z" fill="#ff5a97"/>
+<text x="256" y="322" text-anchor="middle" font-family="Dela Gothic One" font-size="96" fill="#13141c">GIF</text>
+</g>
+<g transform="translate(1085 495) rotate(12)">
+<circle r="70" fill="#ffffff"/><circle r="58" fill="#ffe14a"/>
+<path transform="translate(-36 -36) scale(.14)" d="M256 40 L318 190 L478 196 L352 296 L396 452 L256 362 L116 452 L160 296 L34 196 L194 190 Z" fill="#13141c"/>
+</g>
+<path fill="#ffe14a" d="M1095 80 Q1106.2 108.8 1135 120 Q1106.2 131.2 1095 160 Q1083.8 131.2 1055 120 Q1083.8 108.8 1095 80 Z"/><path fill="#ffffff" d="M1150 174 Q1154.5 185.5 1166 190 Q1154.5 194.5 1150 206 Q1145.5 194.5 1134 190 Q1145.5 185.5 1150 174 Z"/>
+</svg>

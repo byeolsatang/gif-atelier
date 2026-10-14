@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<rect width="512" height="512" fill="#13141c"/>
+<g transform="translate(256 286) scale(1.18) translate(-256 -286)">
+<path d="M256 412 C178 356 132 300 140 236 C146 186 186 158 226 168 C242 172 252 182 256 192 C260 182 270 172 286 168 C326 158 366 186 372 236 C380 300 334 356 256 412 Z" fill="#ffffff" stroke="#ffffff" stroke-width="28" stroke-linejoin="round"/>
+<path d="M256 412 C178 356 132 300 140 236 C146 186 186 158 226 168 C242 172 252 182 256 192 C260 182 270 172 286 168 C326 158 366 186 372 236 C380 300 334 356 256 412 Z" fill="#ff5a97"/>
+</g>
+<text x="256" y="322" text-anchor="middle" font-family="Dela Gothic One" font-size="96" fill="#13141c">GIF</text>
+<path fill="#ffe14a" d="M396 94 Q404.4 115.6 426 124 Q404.4 132.4 396 154 Q387.6 132.4 366 124 Q387.6 115.6 396 94 Z"/>
+<path fill="#ffffff" d="M440 172 Q443.4 180.6 452 184 Q443.4 187.4 440 196 Q436.6 187.4 428 184 Q436.6 180.6 440 172 Z"/>
+</svg>
