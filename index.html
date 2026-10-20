@@ -163,6 +163,8 @@ textarea{font:inherit;font-size:16px;width:100%;box-sizing:border-box;border:1px
       <div class="row"><span class="lbl">フィルター</span><div class="seg" data-key="filter"><button data-v="none">なし</button><button data-v="mono">モノクロ</button><button data-v="sepia">セピア</button><button data-v="vivid">ビビッド</button><button data-v="film">フィルム</button></div></div>
       <div class="row"><span class="lbl">画質</span><div class="seg" data-key="dither"><button data-v="on">なめらか（ディザ）</button><button data-v="off">くっきり・軽い</button></div>
         <p class="hint">なめらかは空や肌のグラデーションが縞にならず、ファイルは少し大きくなります。</p></div>
+      <div class="row"><span class="lbl">似たコマをまとめる</span><div class="seg" data-key="merge"><button data-v="off">オフ</button><button data-v="weak">弱</button><button data-v="strong">強</button></div>
+        <p class="hint">ほとんど動かないコマを1枚にまとめ、そのぶん長く表示します。再生時間は変わらず、ファイルが軽くなります。</p></div>
       <div class="row"><span class="lbl">色数（少ないほど軽い）</span><div class="seg" data-key="colors" data-num><button data-v="64">64</button><button data-v="128">128</button><button data-v="256">256</button></div></div>
     </div>
   </div>
@@ -199,7 +201,7 @@ window.gifenc={GIFEncoder,quantize,applyPalette};
 const $=id=>document.getElementById(id);
 const pv=$('pv'), pctx=pv.getContext('2d',{willReadFrequently:true});
 const vid=$('vid');
-const S={shape:'none',border:'white',dither:'on',keep:true,oh:270,start:0,end:3,aspect:'orig',text:'Have a nice day ☆',tpos:'bottom',tsize:'m',tstyle:'w',
+const S={merge:'weak',shape:'none',border:'white',dither:'on',keep:true,oh:270,start:0,end:3,aspect:'orig',text:'Have a nice day ☆',tpos:'bottom',tsize:'m',tstyle:'w',
   width:480,fps:12,speed:1,dir:'fwd',loop:'on',filter:'none',colors:256,crop:{x:0,y:0,w:640,h:360}};
 let src=null, playing=true, busy=false, curT=0, tab='crop', lastNow=0, outBlob=null, outUrl=null;
 
@@ -527,12 +529,18 @@ $('make').onclick=async()=>{
   busy=true; $('make').disabled=true; setPlaying(false); vid.pause();
   try{
     const {ow,oh}=outSize(), ts=frameTimes(), c=S.crop;
-    const frames=[];
+    const frames=[]; let lastThumb=null, merged=0;
     for(let i=0;i<ts.length;i++){
       if(src.kind==='video') await seekTo(ts[i]);
       const ctx=renderFrame(srcImage(ts[i]),ow,oh);
-      const data=ctx.getImageData(0,0,ow,oh).data;
-      frames.push(quantizeFrame(G,data,ow,oh));
+      const th=S.merge==='off'?null:thumbOf(ctx.canvas);
+      if(th&&lastThumb&&isSimilar(th,lastThumb,S.merge)){
+        frames[frames.length-1].n++; merged++;
+      } else {
+        if(th) lastThumb=th;
+        const data=ctx.getImageData(0,0,ow,oh).data;
+        const f=quantizeFrame(G,data,ow,oh); f.n=1; frames.push(f);
+      }
       setProg((i+1)/ts.length*.9,`コマを作成中 ${i+1}/${ts.length}`);
       await yieldUI();
     }
@@ -540,12 +548,14 @@ $('make').onclick=async()=>{
     if(S.dir==='rev') order=frames.slice().reverse();
     if(S.dir==='pp') order=frames.concat(frames.slice(1,-1).reverse());
     setProg(.95,'GIFにまとめています…'); await yieldUI();
-    const gif=G.GIFEncoder(), delay=Math.round(1000/S.fps);
-    order.forEach((f,i)=>{ const o={palette:f.palette,delay}; if(i===0) o.repeat=S.loop==='on'?0:-1;
+    // GIF delays are in 1/100 s: carry the rounding so the total play time stays exact
+    const gif=G.GIFEncoder(), base=1000/S.fps; let tms=0;
+    order.forEach((f,i)=>{ const ms=base*f.n, delay=Math.max(20,Math.round((tms+ms)/10)*10-Math.round(tms/10)*10); tms+=ms;
+      const o={palette:f.palette,delay}; if(i===0) o.repeat=S.loop==='on'?0:-1;
       if(f.T!==undefined){o.transparent=true;o.transparentIndex=f.T;o.dispose=2;}
       gif.writeFrame(f.index,ow,oh,o); });
     gif.finish();
-    showResult(new Blob([gif.bytes()],{type:'image/gif'}),'gif',ow,oh,`${order.length}コマ${S.shape!=='none'?'・透過':''}`);
+    showResult(new Blob([gif.bytes()],{type:'image/gif'}),'gif',ow,oh,`${order.length}コマ${merged?`（似たコマ${merged}枚を統合）`:''}${S.shape!=='none'?'・透過':''}`);
     setProg(1,'できました'); setTimeout(()=>{$('progWrap').hidden=true; updateSum();},1200);
     $('result').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
   }catch(err){
@@ -604,6 +614,20 @@ function quantizeFrame(G,data,ow,oh){
   if(S.dither==='on') index=ditherIndex(data,ow,oh,palette,skip,T);
   else { index=G.applyPalette(data,palette.slice(0,T)); for(let i=0;i<n;i++) if(skip[i]) index[i]=T; }
   return {palette,index,T};
+}
+/* ---------- near-duplicate frame merging ---------- */
+const thumbCv=document.createElement('canvas'); thumbCv.width=thumbCv.height=32;
+const thumbCtx=thumbCv.getContext('2d',{willReadFrequently:true});
+function thumbOf(cv){ thumbCtx.clearRect(0,0,32,32); thumbCtx.imageSmoothingEnabled=true; thumbCtx.imageSmoothingQuality='high'; thumbCtx.drawImage(cv,0,0,32,32); return thumbCtx.getImageData(0,0,32,32).data.slice(); }
+// mean: average per-pixel difference; max: largest single-pixel difference (keeps small moving details)
+const MERGE={weak:{mean:1.2,max:14},strong:{mean:3,max:40}};
+function isSimilar(a,b,mode){
+  const t=MERGE[mode]; let sum=0, mx=0;
+  for(let i=0;i<a.length;i+=4){
+    const d=(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])+Math.abs(a[i+3]-b[i+3]))/4;
+    sum+=d; if(d>mx){ mx=d; if(mx>t.max) return false; }
+  }
+  return sum/(a.length/4)<=t.mean;
 }
 let outExt='gif';
 function fmtSize(b){ const mb=b/1048576; return mb<1?Math.round(b/1024)+'KB':mb.toFixed(2)+'MB'; }
